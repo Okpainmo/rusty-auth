@@ -1,4 +1,4 @@
-# Krabby Chat Auth Server
+# Rusty Auth
 
 [![CI](https://github.com/KrabbyHQ/chat__auth_server/actions/workflows/ci.yml/badge.svg)](https://github.com/KrabbyHQ/chat__auth_server/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -6,7 +6,7 @@
 [![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-yellow.svg)](https://conventionalcommits.org)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
 
-This repository contains the AUTH REST API layer/service for the Krabby `chat` implementation.
+A ready-made rust auth service built for direct integration into any microservice project.
 
 ## Core Features
 
@@ -36,7 +36,29 @@ This repository contains the AUTH REST API layer/service for the Krabby `chat` i
 
 - [Node.js](https://nodejs.org/en/download/)(and [Bun](https://bun.sh/)) - for contribution standards enforcement)
 
-### 2. Database Setup
+
+### 2. Integrating into a microservice project
+
+1. Ensure to be on the preferred directory of your microservice project. E.g. `services`.
+
+```bash
+cd <microservice-services-dir>
+```
+
+2. Clone in the auth service.
+
+```bash
+git clone --single-branch --branch main https://github.com/Okpainmo/rusty-auth <preferred-auth-service-name>
+```
+
+3. "ungit" the directory
+
+```bash
+cd <preferred-auth-service-name>
+rm -rf .git
+```
+
+### 3. Database Setup
 
 Start the local PostgreSQL database:
 
@@ -84,7 +106,7 @@ sqlx migrate add added_new_hello_field_to_users_table
 sqlx migrate run --database-url postgres://<user-name>:<password>@localhost:5433/<database-name>
 ```
 
-### 3. Running the Server
+### 4. Running the Server
 
 *Ensure to have installed `cargo-watch`.*
 
@@ -102,7 +124,7 @@ cargo dev
 
 *Note: The `dev` command is an alias for `cargo watch`. If you are on WSL and reload doesn't trigger, proceed to use the polling command option(also see `.cargo/config.toml` for reference on that).*
 
-### 4. Setting up to ensure contribution standards
+### 5. Setting up to ensure contribution standards
 
 Based on previous research, the Rust ecosystem lacks a very robust/mature and fully integrated solution for enforcing code contribution standards, such as conventional commits, pre-commit hooks, and automated linting checks. 
 
