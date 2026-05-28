@@ -1,12 +1,15 @@
 {
-  "type": "module",
-  "private": true,
   "devDependencies": {
     "@commitlint/cli": "^20.4.2",
     "@commitlint/config-conventional": "^20.4.2",
-    "husky": "^9.1.7"
+    "husky": "^9.1.7",
+    "prettier": "^3.8.3"
   },
+  "private": true,
   "scripts": {
-    "prepare": "husky"
-  }
+    "prepare": "husky",
+    "format": "prettier --write \"**/*.md\"",
+    "format:check": "prettier --check \"**/*.md\""
+  },
+  "type": "module"
 }
