@@ -2,10 +2,10 @@
 
 ## Supported Versions
 
-Krabby Chat Auth Server is currently in pre-release (0.x) development.
+Rusty Auth is currently in pre-release (0.x) development.
 
-At this stage, only the latest tagged release receives security updates.
-The `main` branch may contain unstable or experimental changes and should not be used in production environments.
+At this stage, only the latest tagged release receives security updates. The `main` branch may
+contain unstable or experimental changes and should not be used in production environments.
 
 | Version                  | Supported          |
 | ------------------------ | ------------------ |
@@ -21,7 +21,8 @@ The `main` branch may contain unstable or experimental changes and should not be
 
 **Please do not report security vulnerabilities through public GitHub issues.**
 
-Security is a top priority for Krabby. If you discover a vulnerability, please report it privately via:
+Security is a top priority for Rusty Auth. If you discover a vulnerability, please report it
+privately via:
 
 📧 okpainmoandrew@gmail.com
 
@@ -35,6 +36,8 @@ Please include:
 
 - Potential impact assessment
 
-We aim to acknowledge receipt within 48 hours and will keep you informed throughout the investigation and remediation process.
+We aim to acknowledge receipt within 48 hours and will keep you informed throughout the
+investigation and remediation process.
 
-We follow responsible disclosure practices and kindly ask that you allow us reasonable time to investigate and release a fix before disclosing the issue publicly.
+We follow responsible disclosure practices and kindly ask that you allow us reasonable time to
+investigate and release a fix before disclosing the issue publicly.

@@ -1,4 +1,4 @@
-# The Krabby Project Pull Request Template/Guide
+# The Rusty Auth Pull Request Template/Guide
 
 ## Section 1: PR Title
 
