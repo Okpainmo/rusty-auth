@@ -6,6 +6,13 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
 
@@ -18,7 +25,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Run cargo check
-        run: cargo check --all --all-features
+        run: cargo check --locked --all --all-features
 
   format:
     name: Format
@@ -40,7 +47,7 @@ jobs:
         with:
           components: clippy
       - name: Run Clippy
-        run: cargo clippy --all --all-features -- -D warnings
+        run: cargo clippy --locked --all --all-features -- -D warnings
 
   test:
     name: TestSuite + Coverage
@@ -48,29 +55,31 @@ jobs:
 
     env:
       APP__ENV: development
+
       APP__SERVER__HOST: 127.0.0.1
       APP__SERVER__PORT: 8000
+
       APP__DATABASE__ENGINE: postgres
       APP__DATABASE__HOST: localhost
       APP__DATABASE__PORT: 5433
-      APP__DATABASE__USER: ${{ secrets.CI_DB_USER }}
-      APP__DATABASE__PASSWORD: ${{ secrets.CI_DB_PASSWORD }}
-      APP__DATABASE__NAME: ${{ secrets.CI_DB_NAME }}
+      APP__DATABASE__USER: rusty_auth
+      APP__DATABASE__PASSWORD: rusty_auth
+      APP__DATABASE__NAME: rusty_auth_test
 
-      APP__AUTH__JWT_SECRET: ${{ secrets.CI_JWT_SECRET }}
+      APP__AUTH__JWT_SECRET: ci-test-secret
       APP__AUTH__JWT_ACCESS_EXPIRATION_TIME_IN_HOURS: 1
       APP__AUTH__JWT_REFRESH_EXPIRATION_TIME_IN_HOURS: 24
       APP__AUTH__JWT_ONE_TIME_PASSWORD_LIFETIME_IN_MINUTES: 5
 
-      DATABASE_URL: postgres://${{ secrets.CI_DB_USER }}:${{ secrets.CI_DB_PASSWORD }}@localhost:5433/${{ secrets.CI_DB_NAME }}
+      DATABASE_URL: postgres://rusty_auth:rusty_auth@localhost:5433/rusty_auth_test
 
     services:
       postgres:
         image: postgres:15
         env:
-          POSTGRES_USER: ${{ secrets.CI_DB_USER }}
-          POSTGRES_PASSWORD: ${{ secrets.CI_DB_PASSWORD }}
-          POSTGRES_DB: ${{ secrets.CI_DB_NAME }}
+          POSTGRES_USER: rusty_auth
+          POSTGRES_PASSWORD: rusty_auth
+          POSTGRES_DB: rusty_auth_test
         ports:
           - 5433:5432
         options: >-
@@ -85,16 +94,16 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Install sqlx-cli
-        run: cargo install sqlx-cli --no-default-features --features postgres
+        run: cargo install sqlx-cli --locked --version 0.8.6 --no-default-features --features postgres
 
       - name: Install cargo-llvm-cov
-        run: cargo install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov --locked
 
       - name: Run Migrations
         run: sqlx migrate run
 
       - name: Run Tests with Coverage
-        run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+        run: cargo llvm-cov --locked --all-features --workspace --lcov --output-path lcov.info
 
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
