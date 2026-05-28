@@ -1,11 +1,14 @@
 use crate::AppState;
+use crate::core::lib::user::create_user::{CreateUser, create_user};
+use crate::core::lib::user::find_user::{find_user_by_email, find_user_by_phone_number};
+use crate::core::lib::user::update_user::{UpdateUser, update_user_by_id};
+use crate::core::structs::user::RegisteredUserProfile;
 use crate::utils::cookie_deploy_handler::deploy_auth_cookie;
 use crate::utils::generate_tokens::User;
 use crate::utils::generate_tokens::generate_tokens;
 use crate::utils::hashing_handler::hashing_handler;
 use axum::extract::State;
 use axum::{Json, http::StatusCode, response::IntoResponse};
-use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use tower_cookies::Cookies;
 use tracing::error;
@@ -20,29 +23,9 @@ pub struct InSpecs {
     phone_number: String,
 }
 
-#[derive(Debug, Serialize, sqlx::FromRow)]
-pub struct UserProfile {
-    id: i64,
-    full_name: String,
-    email: String,
-    profile_image: String,
-    country: String,
-    phone_number: String,
-    pub created_at: NaiveDateTime,
-    pub updated_at: NaiveDateTime,
-}
-
-#[derive(Debug, Serialize, sqlx::FromRow)]
-pub struct UserLookUp {
-    email: String,
-    phone_number: String,
-    pub created_at: NaiveDateTime,
-    pub updated_at: NaiveDateTime,
-}
-
 #[derive(Debug, Serialize)]
 pub struct ResponseCore {
-    user_profile: UserProfile,
+    user_profile: RegisteredUserProfile,
     access_token: Option<String>,
     refresh_token: Option<String>,
 }
@@ -78,21 +61,7 @@ pub async fn register_user(
     };
 
     // ===== Check for existing user by email =====
-    let email_query = sqlx::query_as::<_, UserLookUp>(
-        r#"
-        SELECT
-            email,
-            phone_number,
-            created_at,
-            updated_at
-        FROM users
-        WHERE email = $1
-        LIMIT 1
-        "#,
-    )
-    .bind(&payload.email)
-    .fetch_optional(&state.db)
-    .await;
+    let email_query = find_user_by_email(&state.db, &payload.email).await;
 
     match email_query {
         Ok(Some(_existing_user)) => {
@@ -127,21 +96,7 @@ pub async fn register_user(
         }
     }
 
-    let phone_number_query = sqlx::query_as::<_, UserLookUp>(
-        r#"
-        SELECT
-            email,
-            phone_number,
-            created_at,
-            updated_at
-        FROM users
-        WHERE phone_number = $1
-        LIMIT 1
-        "#,
-    )
-    .bind(&payload.phone_number)
-    .fetch_optional(&state.db)
-    .await;
+    let phone_number_query = find_user_by_phone_number(&state.db, &payload.phone_number).await;
 
     match phone_number_query {
         Ok(Some(_existing_user)) => {
@@ -179,35 +134,17 @@ pub async fn register_user(
     let full_name = format!("{} {}", payload.first_name, payload.last_name);
 
     // Create user
-    let result = sqlx::query_as::<_, UserProfile>(
-        r#"
-        INSERT INTO users (
-            email,
-            password,
+    let result = create_user(
+        &state.db,
+        CreateUser {
+            email: payload.email.clone(),
+            password: hashed_password,
             full_name,
-            profile_image,
-            country,
-            phone_number
-        )
-        VALUES ($1, $2, $3, $4, $5, $6)
-        RETURNING
-            id,
-            full_name,
-            email,
-            profile_image,
-            country,
-            phone_number,
-            created_at,
-            updated_at
-        "#,
+            profile_image: "".to_string(),
+            country: payload.country,
+            phone_number: payload.phone_number,
+        },
     )
-    .bind(&payload.email)
-    .bind(&hashed_password)
-    .bind(&full_name)
-    .bind("")
-    .bind(payload.country)
-    .bind(payload.phone_number)
-    .fetch_one(&state.db)
     .await;
 
     match result {
@@ -237,21 +174,52 @@ pub async fn register_user(
                 }
             };
 
+            let hashed_access_token = match tokens.access_token.as_deref() {
+                Some(access_token) => match hashing_handler(access_token).await {
+                    Ok(hash) => Some(hash),
+                    Err(e) => {
+                        error!("ACCESS TOKEN HASHING ERROR!");
+                        return (
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            Json(RegisterResponse {
+                                response_message: "Failed to hash access token".to_string(),
+                                response: None,
+                                error: Some(format!("Access token hashing error: {}", e)),
+                            }),
+                        );
+                    }
+                },
+                None => None,
+            };
+
+            let hashed_refresh_token = match tokens.refresh_token.as_deref() {
+                Some(refresh_token) => match hashing_handler(refresh_token).await {
+                    Ok(hash) => Some(hash),
+                    Err(e) => {
+                        error!("REFRESH TOKEN HASHING ERROR!");
+                        return (
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            Json(RegisterResponse {
+                                response_message: "Failed to hash refresh token".to_string(),
+                                response: None,
+                                error: Some(format!("Refresh token hashing error: {}", e)),
+                            }),
+                        );
+                    }
+                },
+                None => None,
+            };
+
             // Update tokens for the created user
-            let update_result = sqlx::query(
-                r#"
-                UPDATE users
-                SET
-                    access_token = $1,
-                    refresh_token = $2,
-                    updated_at = NOW()
-                WHERE id = $3
-                "#,
+            let update_result = update_user_by_id(
+                &state.db,
+                new_user.id,
+                UpdateUser {
+                    access_token: hashed_access_token,
+                    refresh_token: hashed_refresh_token,
+                    is_logged_out: None,
+                },
             )
-            .bind(&tokens.access_token)
-            .bind(&tokens.refresh_token)
-            .bind(new_user.id)
-            .execute(&state.db)
             .await;
 
             if let Err(e) = update_result {

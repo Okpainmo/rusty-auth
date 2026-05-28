@@ -13,7 +13,7 @@ pub async fn deploy_auth_cookie(cookies: Cookies, cookie_value: String, config: 
     // // jar.remove(Cookie::build("name").path("/"));
 
     // Create a basic cookie
-    let mut cookie = Cookie::new("rusty_chat_auth_cookie", cookie_value);
+    let mut cookie = Cookie::new("auth_cookie", cookie_value);
 
     let auth = config
         .auth

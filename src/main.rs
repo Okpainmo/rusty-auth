@@ -7,10 +7,10 @@
 //! - Database connection establishment.
 //! - Server binding and execution.
 
-use chat_auth_server::db::connect_postgres::connect_pg;
-use chat_auth_server::utils::load_config::load_config;
-use chat_auth_server::utils::load_env::load_env;
-use chat_auth_server::{AppState, create_app};
+use auth::db::connect_postgres::connect_pg;
+use auth::utils::load_config::load_config;
+use auth::utils::load_env::load_env;
+use auth::{AppState, create_app};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tracing::{error, info};

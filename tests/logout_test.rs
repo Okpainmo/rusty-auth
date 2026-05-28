@@ -1,7 +1,13 @@
 mod common;
 
 use common::{RegisterRequest, TestLoginResponse, setup_test_server};
+use serde::Serialize;
 use uuid::Uuid;
+
+#[derive(Serialize)]
+struct LogoutRequest {
+    user_email: String,
+}
 
 #[tokio::test]
 async fn test_logout_user_success() {
@@ -27,7 +33,10 @@ async fn test_logout_user_success() {
 
     // Logout
     let response = server
-        .post(&format!("/api/v1/auth/logout?user_email={}", email))
+        .post("/api/v1/auth/logout")
+        .json(&LogoutRequest {
+            user_email: email.clone(),
+        })
         .await;
 
     response.assert_status(axum::http::StatusCode::OK);
@@ -43,10 +52,11 @@ async fn test_logout_non_existent_user() {
     let server = setup_test_server().await;
 
     let response = server
-        .post("/api/v1/auth/logout?user_email=ghost@example.com")
+        .post("/api/v1/auth/logout")
+        .json(&LogoutRequest {
+            user_email: "ghost@example.com".to_string(),
+        })
         .await;
 
-    // Based on the controller implementation, it uses fetch_one which panics/errors if not found
-    // Let's see how it behaves. Usually it returns INTERNAL_SERVER_ERROR if fetch_one fails.
     response.assert_status(axum::http::StatusCode::INTERNAL_SERVER_ERROR);
 }

@@ -1,33 +1,16 @@
+use crate::AppState;
+use crate::core::lib::user::find_user::find_user_profile_by_email;
+use crate::core::lib::user::update_user::{UpdateUser, update_user_by_email};
+use crate::core::structs::user::UserProfile;
+use crate::utils::cookie_deploy_handler::deploy_auth_cookie;
 use crate::utils::generate_tokens::{User, generate_tokens};
+use crate::utils::hashing_handler::hashing_handler;
+use crate::utils::verification_handler::verification_handler; // your existing password verification function
 use axum::extract::State;
 use axum::{Json, http::StatusCode, response::IntoResponse};
 use serde::{Deserialize, Serialize};
-// utils import
-use crate::AppState;
-use crate::utils::cookie_deploy_handler::deploy_auth_cookie;
-use crate::utils::verification_handler::verification_handler; // your existing password verification function
-use chrono::NaiveDateTime;
 use tower_cookies::Cookies;
 use tracing::error;
-
-#[derive(Debug, Serialize, sqlx::FromRow)]
-pub struct UserProfile {
-    // #[sqlx(rename = "id")]
-    id: i64,
-    full_name: String,
-    email: String,
-    profile_image: Option<String>,
-    #[serde(skip_serializing)]
-    password: String,
-    is_admin: bool,
-    is_active: bool,
-    status: String,
-    country: String,
-    phone_number: String,
-    is_logged_out: bool,
-    pub created_at: NaiveDateTime,
-    pub updated_at: NaiveDateTime,
-}
 
 #[derive(Debug, Serialize)]
 pub struct ResponseCore {
@@ -58,12 +41,7 @@ pub async fn login_user(
     Json(payload): Json<LoginRequest>,
 ) -> impl IntoResponse {
     // Fetch user by email
-    let user_result = sqlx::query_as::<_, UserProfile>(
-        "SELECT id, full_name, email, profile_image, password, is_active, is_admin, country, phone_number, is_logged_out, status, created_at, updated_at FROM users WHERE email = $1",
-    )
-    .bind(&payload.email)
-    .fetch_optional(&state.db)
-    .await;
+    let user_result = find_user_profile_by_email(&state.db, &payload.email).await;
 
     let user = match user_result {
         Ok(Some(user)) => user,
@@ -119,25 +97,54 @@ pub async fn login_user(
                 }
             };
 
-            deploy_auth_cookie(cookies, tokens.auth_cookie.unwrap(), &state.config).await;
+            let hashed_access_token = match tokens.access_token.as_deref() {
+                Some(access_token) => match hashing_handler(access_token).await {
+                    Ok(hash) => Some(hash),
+                    Err(e) => {
+                        error!("ACCESS TOKEN HASHING ERROR!");
+                        return (
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            Json(LoginResponse {
+                                response_message: "Login failed".to_string(),
+                                response: None,
+                                error: Some(format!("Access token hashing error: {}", e)),
+                            }),
+                        );
+                    }
+                },
+                None => None,
+            };
 
-            let _ = sqlx::query_as::<_, UserProfile>(
-                r#"
-                    UPDATE users
-                    SET
-                        access_token = $1,
-                        refresh_token = $2,
-                        is_logged_out = $3,
-                        updated_at = NOW()
-                    WHERE email = $4
-                "#,
+            let hashed_refresh_token = match tokens.refresh_token.as_deref() {
+                Some(refresh_token) => match hashing_handler(refresh_token).await {
+                    Ok(hash) => Some(hash),
+                    Err(e) => {
+                        error!("REFRESH TOKEN HASHING ERROR!");
+                        return (
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            Json(LoginResponse {
+                                response_message: "Login failed".to_string(),
+                                response: None,
+                                error: Some(format!("Refresh token hashing error: {}", e)),
+                            }),
+                        );
+                    }
+                },
+                None => None,
+            };
+
+            let _ = update_user_by_email(
+                &state.db,
+                &payload.email,
+                UpdateUser {
+                    access_token: hashed_access_token,
+                    refresh_token: hashed_refresh_token,
+                    is_logged_out: Some(false),
+                },
             )
-            .bind(&tokens.access_token)
-            .bind(&tokens.refresh_token)
-            .bind(false)
-            .bind(&payload.email)
-            .fetch_one(&state.db)
             .await;
+
+            deploy_auth_cookie(cookies, tokens.auth_cookie.unwrap(), &state.config).await;
 
             (
                 StatusCode::OK,

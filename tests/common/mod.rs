@@ -1,7 +1,7 @@
+use auth::db::connect_postgres::connect_pg;
+use auth::utils::load_config::load_config;
+use auth::{AppState, create_app};
 use axum_test::TestServer;
-use chat_auth_server::db::connect_postgres::connect_pg;
-use chat_auth_server::utils::load_config::load_config;
-use chat_auth_server::{AppState, create_app};
 use std::sync::Arc;
 
 pub async fn setup_test_server() -> TestServer {

@@ -42,7 +42,7 @@ async fn test_login_user_success() {
     assert!(res.refresh_token.is_some());
 
     // Check if cookie is set
-    let _ = response.cookie("rusty_chat_auth_cookie");
+    let _ = response.cookie("auth_cookie");
 }
 
 #[tokio::test]

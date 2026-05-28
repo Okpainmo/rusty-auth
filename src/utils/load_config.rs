@@ -36,11 +36,11 @@ pub struct ClientIntegrationsSection {
     pub allow_admin_routes_protector_middleware: bool,
 }
 
-#[derive(Debug, Deserialize)]
-pub struct ObservabilitySection {
-    pub enable_tracing: bool,
-    pub enable_metrics: bool,
-}
+// #[derive(Debug, Deserialize)]
+// pub struct ObservabilitySection {
+//     pub enable_tracing: bool,
+//     pub enable_metrics: bool,
+// }
 
 #[derive(Debug, Deserialize)]
 pub struct ServerSection {
@@ -80,7 +80,7 @@ pub struct AuthSection {
 pub struct AppConfig {
     pub app: AppSection,
     pub client_integrations: ClientIntegrationsSection,
-    pub observability: ObservabilitySection,
+    // pub observability: ObservabilitySection,
 
     // Optional / currently commented-out sections
     pub server: Option<ServerSection>,
@@ -262,10 +262,10 @@ mod tests {
                 allow_request_timeout_middleware: true,
                 allow_admin_routes_protector_middleware: true,
             },
-            observability: ObservabilitySection {
-                enable_tracing: true,
-                enable_metrics: true,
-            },
+            // observability: ObservabilitySection {
+            //     enable_tracing: true,
+            //     enable_metrics: true,
+            // },
             server: Some(ServerSection {
                 host: "127.0.0.1".to_string(),
                 port: 8080,
@@ -298,10 +298,10 @@ mod tests {
                 allow_request_timeout_middleware: false,
                 allow_admin_routes_protector_middleware: false,
             },
-            observability: ObservabilitySection {
-                enable_tracing: false,
-                enable_metrics: false,
-            },
+            // observability: ObservabilitySection {
+            //     enable_tracing: false,
+            //     enable_metrics: false,
+            // },
             server: Some(ServerSection {
                 host: "127.0.0.1".to_string(),
                 port: 8080,
@@ -337,10 +337,10 @@ mod tests {
                 allow_request_timeout_middleware: false,
                 allow_admin_routes_protector_middleware: false,
             },
-            observability: ObservabilitySection {
-                enable_tracing: false,
-                enable_metrics: false,
-            },
+            // observability: ObservabilitySection {
+            //     enable_tracing: false,
+            //     enable_metrics: false,
+            // },
             server: Some(ServerSection {
                 host: "127.0.0.1".to_string(),
                 port: 0,
@@ -375,10 +375,10 @@ mod tests {
                 allow_request_timeout_middleware: false,
                 allow_admin_routes_protector_middleware: false,
             },
-            observability: ObservabilitySection {
-                enable_tracing: false,
-                enable_metrics: false,
-            },
+            // observability: ObservabilitySection {
+            //     enable_tracing: false,
+            //     enable_metrics: false,
+            // },
             server: Some(ServerSection {
                 host: "127.0.0.1".to_string(),
                 port: 8080,
@@ -416,10 +416,10 @@ mod tests {
                 allow_request_timeout_middleware: false,
                 allow_admin_routes_protector_middleware: false,
             },
-            observability: ObservabilitySection {
-                enable_tracing: false,
-                enable_metrics: false,
-            },
+            // observability: ObservabilitySection {
+            //     enable_tracing: false,
+            //     enable_metrics: false,
+            // },
             server: None,
             database: None,
             auth: None,

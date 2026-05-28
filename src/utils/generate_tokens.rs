@@ -114,13 +114,8 @@ pub async fn generate_tokens(
                 &EncodingKey::from_secret(jwt_secret.as_bytes()),
             )?;
 
-            let auth_cookie_part_a = hashing_handler(user.email.as_str()).await?;
-            let auth_cookie_part_b = hashing_handler(jwt_secret).await?;
-
-            let auth_cookie = format!(
-                "rusty_chat____{}____{}",
-                auth_cookie_part_a, auth_cookie_part_b
-            );
+            let hashed_secret = hashing_handler(user.email.as_str()).await?;
+            let auth_cookie = format!("auth_cookie____{}", hashed_secret);
 
             Ok(Tokens {
                 access_token: Some(access_token),
@@ -181,7 +176,10 @@ fn calculate_expiration(
 mod tests {
     use super::*;
     use crate::utils::load_config::{
-        AppSection, AuthSection, ClientIntegrationsSection, ObservabilitySection,
+        AppSection,
+        AuthSection,
+        ClientIntegrationsSection,
+        // ObservabilitySection,
     };
 
     fn mock_config() -> AppConfig {
@@ -197,10 +195,10 @@ mod tests {
                 allow_request_timeout_middleware: true,
                 allow_admin_routes_protector_middleware: true,
             },
-            observability: ObservabilitySection {
-                enable_tracing: false,
-                enable_metrics: false,
-            },
+            // observability: ObservabilitySection {
+            //     enable_tracing: false,
+            //     enable_metrics: false,
+            // },
             server: None,
             database: None,
             auth: Some(AuthSection {
