@@ -17,6 +17,6 @@ jwt_access_expiration_time_in_hours = 1
 jwt_refresh_expiration_time_in_hours = 24
 jwt_one_time_password_lifetime_in_minutes = 5
 
-[observability]
-enable_tracing = true
-enable_metrics = true
+# [observability]
+# enable_tracing = true
+# enable_metrics = true
