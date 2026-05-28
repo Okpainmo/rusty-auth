@@ -1,4 +1,13 @@
-echo "Running tests..."
+#!/usr/bin/env sh
+
+info() {
+  printf '%s\n' "$1"
+}
+
+info "🧪 Pre-push: running test suite..."
 cargo test || exit 1
 
-echo "All checks passed - push approved!"
+info "📝 Checking markdown formatting..."
+bunx prettier --check "**/*.md" || exit 1
+
+info "✅ Pre-push: all checks passed. Push approved."
