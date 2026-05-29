@@ -33,6 +33,9 @@ pub struct ClientIntegrationsSection {
     pub allow_request_timeout_middleware: bool,
 
     #[serde(default)]
+    pub allow_rate_limit_middleware: bool,
+
+    #[serde(default)]
     pub allow_admin_routes_protector_middleware: bool,
 }
 
@@ -69,11 +72,12 @@ pub struct AuthSection {
     pub jwt_one_time_password_lifetime_in_minutes: u64,
 }
 
-// #[derive(Debug, Deserialize)]
-// pub struct SecuritySection {
-//     pub bcrypt_cost: u32,
-//     pub rate_limit_per_minute: u32,
-// }
+#[derive(Debug, Deserialize)]
+pub struct RateLimitSection {
+    pub enabled: bool,
+    pub requests_per_window: u64,
+    pub window_secs: u64,
+}
 
 /// Root configuration structure containing all application settings.
 #[derive(Debug, Deserialize)]
@@ -86,7 +90,7 @@ pub struct AppConfig {
     pub server: Option<ServerSection>,
     pub database: Option<DatabaseSection>,
     pub auth: Option<AuthSection>,
-    // pub security: Option<SecuritySection>,
+    pub rate_limit: Option<RateLimitSection>,
 }
 
 /// Loads the application configuration.
@@ -260,6 +264,7 @@ mod tests {
                 allow_sessions_middleware: true,
                 allow_logging_middleware: true,
                 allow_request_timeout_middleware: true,
+                allow_rate_limit_middleware: false,
                 allow_admin_routes_protector_middleware: true,
             },
             // observability: ObservabilitySection {
@@ -282,6 +287,7 @@ mod tests {
                 connect_timeout_secs: 3,
             }),
             auth: Some(valid_auth_section()),
+            rate_limit: None,
         };
 
         assert!(config.validate().is_ok());
@@ -296,6 +302,7 @@ mod tests {
                 allow_sessions_middleware: false,
                 allow_logging_middleware: false,
                 allow_request_timeout_middleware: false,
+                allow_rate_limit_middleware: false,
                 allow_admin_routes_protector_middleware: false,
             },
             // observability: ObservabilitySection {
@@ -318,6 +325,7 @@ mod tests {
                 connect_timeout_secs: 3,
             }),
             auth: Some(valid_auth_section()),
+            rate_limit: None,
         };
         config.app.name = "".to_string();
 
@@ -335,6 +343,7 @@ mod tests {
                 allow_sessions_middleware: false,
                 allow_logging_middleware: false,
                 allow_request_timeout_middleware: false,
+                allow_rate_limit_middleware: false,
                 allow_admin_routes_protector_middleware: false,
             },
             // observability: ObservabilitySection {
@@ -357,6 +366,7 @@ mod tests {
                 connect_timeout_secs: 3,
             }),
             auth: Some(valid_auth_section()),
+            rate_limit: None,
         };
 
         let result = config.validate();
@@ -373,6 +383,7 @@ mod tests {
                 allow_sessions_middleware: false,
                 allow_logging_middleware: false,
                 allow_request_timeout_middleware: false,
+                allow_rate_limit_middleware: false,
                 allow_admin_routes_protector_middleware: false,
             },
             // observability: ObservabilitySection {
@@ -395,6 +406,7 @@ mod tests {
                 connect_timeout_secs: 3,
             }),
             auth: Some(valid_auth_section()),
+            rate_limit: None,
         };
 
         let result = config.validate();
@@ -414,6 +426,7 @@ mod tests {
                 allow_sessions_middleware: false,
                 allow_logging_middleware: false,
                 allow_request_timeout_middleware: false,
+                allow_rate_limit_middleware: false,
                 allow_admin_routes_protector_middleware: false,
             },
             // observability: ObservabilitySection {
@@ -423,6 +436,7 @@ mod tests {
             server: None,
             database: None,
             auth: None,
+            rate_limit: None,
         };
 
         let result = config.validate();

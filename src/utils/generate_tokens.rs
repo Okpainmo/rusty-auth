@@ -205,6 +205,7 @@ mod tests {
                 allow_sessions_middleware: true,
                 allow_logging_middleware: true,
                 allow_request_timeout_middleware: true,
+                allow_rate_limit_middleware: false,
                 allow_admin_routes_protector_middleware: true,
             },
             // observability: ObservabilitySection {
@@ -219,6 +220,7 @@ mod tests {
                 jwt_refresh_expiration_time_in_hours: 24,
                 jwt_one_time_password_lifetime_in_minutes: 5,
             }),
+            rate_limit: None,
         }
     }
 

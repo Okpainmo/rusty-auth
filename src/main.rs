@@ -8,6 +8,7 @@
 //! - Server binding and execution.
 
 use auth::db::connect_postgres::connect_pg;
+use auth::middlewares::rate_limit_middleware::new_rate_limit_store;
 use auth::utils::load_config::load_config;
 use auth::utils::load_env::load_env;
 use auth::{AppState, create_app};
@@ -96,6 +97,7 @@ async fn main() {
     let state = AppState {
         config: Arc::new(clean_config),
         db: db_pool,
+        rate_limit_store: new_rate_limit_store(),
     };
 
     let app = create_app(state.clone());

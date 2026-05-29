@@ -12,6 +12,11 @@ host = "127.0.0.1"
 port = 8000
 request_timeout_secs = 60
 
+[rate_limit]
+enabled = true
+requests_per_window = 60
+window_secs = 60
+
 # [observability]
 # enable_tracing = true
 # enable_metrics = true
