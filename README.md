@@ -112,6 +112,12 @@ sqlx migrate add added_new_hello_field_to_users_table
 sqlx migrate run --database-url postgres://<user-name>:<password>@localhost:5433/<database-name>
 ```
 
+E.g.
+
+```shell
+sqlx migrate run --database-url postgres://okpainmo:supersecret@localhost:5433/rusty-auth-dev-db
+```
+
 ### 4. Running the Server
 
 **Ensure to have installed `cargo-watch`.**
