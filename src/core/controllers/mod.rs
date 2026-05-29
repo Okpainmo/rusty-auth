@@ -1,3 +1,6 @@
-pub mod login_user;
-pub mod logout_user;
-pub mod register_user;
+pub mod login;
+pub mod logout;
+pub mod permissions;
+pub mod register;
+pub mod roles;
+pub mod sessions;
