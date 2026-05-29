@@ -34,6 +34,9 @@ mod assign_user_role;
 #[path = "controllers/roles/create_role.rs"]
 mod create_role;
 
+#[path = "controllers/roles/delete_role_permission.rs"]
+mod delete_role_permission;
+
 #[path = "controllers/roles/list_roles.rs"]
 mod list_roles;
 

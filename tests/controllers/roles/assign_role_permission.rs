@@ -1,17 +1,17 @@
-use crate::common::setup_test_server_and_db;
+use crate::common::{authenticated_request, register_authenticated_user, setup_test_server_and_db};
 use serde_json::Value;
 use uuid::Uuid;
 
 #[tokio::test]
 async fn test_assign_role_permission_success() {
     let (server, db) = setup_test_server_and_db().await;
+    let auth = register_authenticated_user(&server).await;
 
     let unique_id = Uuid::new_v4().to_string();
     let role_name = format!("role_{}", unique_id);
     let permission_name = format!("permission_{}", unique_id);
 
-    let role_response = server
-        .post("/api/v1/auth/roles")
+    let role_response = authenticated_request(server.post("/api/v1/auth/roles"), &auth)
         .json(&serde_json::json!({
             "name": role_name,
             "description": "Test role"
@@ -21,8 +21,7 @@ async fn test_assign_role_permission_success() {
     let role_body = role_response.json::<Value>();
     let role_id = role_body["response"]["data"]["id"].as_str().unwrap();
 
-    let permission_response = server
-        .post("/api/v1/auth/permissions")
+    let permission_response = authenticated_request(server.post("/api/v1/auth/permissions"), &auth)
         .json(&serde_json::json!({
             "name": permission_name,
             "description": "Test permission"
@@ -32,8 +31,7 @@ async fn test_assign_role_permission_success() {
     let permission_body = permission_response.json::<Value>();
     let permission_id = permission_body["response"]["data"]["id"].as_str().unwrap();
 
-    server
-        .post("/api/v1/auth/roles/permissions")
+    authenticated_request(server.post("/api/v1/auth/roles/permissions"), &auth)
         .json(&serde_json::json!({
             "role_id": role_id,
             "permission_id": permission_id

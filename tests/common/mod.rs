@@ -1,9 +1,10 @@
 use auth::db::connect_postgres::connect_pg;
 use auth::utils::load_config::load_config;
 use auth::{AppState, create_app};
-use axum_test::TestServer;
+use axum_test::{TestRequest, TestServer};
 use sqlx::PgPool;
 use std::sync::Arc;
+use uuid::Uuid;
 
 pub async fn setup_test_server_and_db() -> (TestServer, PgPool) {
     dotenvy::from_filename(".env.development").ok();
@@ -107,4 +108,56 @@ pub struct TestUserProfile {
     pub email: String,
     pub user_type: String,
     pub country_code: Option<String>,
+}
+
+#[allow(dead_code)]
+pub struct TestAuth {
+    pub user_id: i64,
+    pub email: String,
+    pub session_id: String,
+    pub access_token: String,
+    pub refresh_token: String,
+    pub auth_cookie: String,
+}
+
+pub async fn register_authenticated_user(server: &TestServer) -> TestAuth {
+    let unique_id = Uuid::new_v4().to_string();
+    let email = format!("auth_{}@example.com", unique_id);
+
+    let response = server
+        .post("/api/v1/auth/register")
+        .json(&RegisterRequest {
+            first_name: "Auth".to_string(),
+            last_name: "User".to_string(),
+            email: email.clone(),
+            password: "password123".to_string(),
+            country: Some("TestCountry".to_string()),
+            country_code: Some("TC".to_string()),
+            phone_number: Some(unique_id[0..10].to_string()),
+        })
+        .await;
+
+    response.assert_status(axum::http::StatusCode::CREATED);
+    let auth_cookie = response.cookie("auth_cookie").value().to_string();
+    let body = response.json::<TestRegisterResponse>();
+    let core = body.response.unwrap();
+    let user_profile = core.user_profile.unwrap();
+
+    TestAuth {
+        user_id: user_profile.id,
+        email,
+        session_id: core.session_id,
+        access_token: core.access_token.unwrap(),
+        refresh_token: core.refresh_token.unwrap(),
+        auth_cookie,
+    }
+}
+
+pub fn authenticated_request(request: TestRequest, auth: &TestAuth) -> TestRequest {
+    request
+        .add_header("user_id", auth.user_id.to_string())
+        .authorization_bearer(&auth.access_token)
+        .add_header("session_token", auth.refresh_token.clone())
+        .add_header("session_id", auth.session_id.clone())
+        .add_header("cookie", format!("auth_cookie={}", auth.auth_cookie))
 }

@@ -62,7 +62,7 @@ async fn test_register_user_success() {
     .fetch_one(&db)
     .await
     .unwrap();
-    assert_eq!(request_path, "/api/v1/auth/register");
+    assert_eq!(request_path, "/register");
 
     let request_method: String = sqlx::query_scalar(
         "SELECT request_method FROM sub_sessions WHERE session_id = $1::uuid AND activity_type = 'register'",
