@@ -10,6 +10,7 @@ use crate::core::controllers::register::register_user::register_user;
 use crate::core::controllers::roles::assign_role_permission::assign_role_permission_controller;
 use crate::core::controllers::roles::assign_user_role::assign_user_role_controller;
 use crate::core::controllers::roles::create_role::create_role_controller;
+use crate::core::controllers::roles::delete_role_permission::delete_role_permission_controller;
 use crate::core::controllers::roles::list_roles::list_roles;
 use crate::core::controllers::roles::list_user_roles::list_user_roles;
 use crate::core::controllers::roles::remove_user_role::remove_user_role_controller;
@@ -29,7 +30,7 @@ use tower_cookies::CookieManagerLayer;
 pub fn auth_routes(state: &AppState) -> Router<AppState> {
     let protected_routes = Router::new()
         .route("/sessions", get(list_sessions))
-        .route("/sessions/users/{user_id}", get(list_user_sessions))
+        .route("/sessions/user/{user_id}", get(list_user_sessions))
         .route(
             "/sessions/{session_id}",
             get(get_session).patch(update_session),
@@ -38,10 +39,11 @@ pub fn auth_routes(state: &AppState) -> Router<AppState> {
         .route("/roles/{role_id}", patch(update_role_controller))
         .route(
             "/roles/permissions",
-            post(assign_role_permission_controller),
+            post(assign_role_permission_controller).delete(delete_role_permission_controller),
         )
         .route("/roles/user/assign", post(assign_user_role_controller))
         .route("/roles/user/remove", post(remove_user_role_controller))
+        .route("/roles/user/{user_id}", get(list_user_roles))
         .route("/logout", post(logout_user))
         .route(
             "/permissions",
@@ -51,7 +53,6 @@ pub fn auth_routes(state: &AppState) -> Router<AppState> {
             "/permissions/{permission_id}",
             patch(update_permission_controller),
         )
-        .route("/roles/user/{user_id}", get(list_user_roles))
         .route("/permissions/user/{user_id}", get(list_user_permissions))
         .layer(middleware::from_fn_with_state(
             state.clone(),

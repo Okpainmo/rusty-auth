@@ -143,7 +143,11 @@ async fn main() {
         }
     };
 
-    let server_result = axum::serve(listener, app).await;
+    let server_result = axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await;
 
     match server_result {
         Ok(_) => {

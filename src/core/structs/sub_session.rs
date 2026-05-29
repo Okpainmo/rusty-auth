@@ -10,8 +10,8 @@ pub struct SubSession {
     pub user_id: i64,
     pub activity_type: String,
     pub activity_description: Option<String>,
-    pub ip_address: Option<String>,
-    pub user_agent: Option<String>,
+    pub ip_address: Option<String>, // user's current IP
+    pub user_agent: Option<String>, // user's current browser agent
     pub request_method: String,
     pub request_path: String,
     pub created_at: NaiveDateTime,
