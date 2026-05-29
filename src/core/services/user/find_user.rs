@@ -6,9 +6,21 @@ pub async fn find_user_profile_by_email(
     email: &str,
 ) -> Result<Option<UserProfile>, sqlx::Error> {
     sqlx::query_as::<_, UserProfile>(
-        "SELECT id, full_name, email, profile_image, password, is_active, is_admin, country, phone_number, is_logged_out, status, created_at, updated_at FROM users WHERE email = $1",
+        "SELECT id, full_name, email, profile_image, password, is_active, user_type, country, country_code, phone_number, is_logged_out, status, created_at, updated_at FROM users WHERE email = $1",
     )
     .bind(email)
+    .fetch_optional(db)
+    .await
+}
+
+pub async fn find_user_profile_by_id(
+    db: &PgPool,
+    user_id: i64,
+) -> Result<Option<UserProfile>, sqlx::Error> {
+    sqlx::query_as::<_, UserProfile>(
+        "SELECT id, full_name, email, profile_image, password, is_active, user_type, country, country_code, phone_number, is_logged_out, status, created_at, updated_at FROM users WHERE id = $1",
+    )
+    .bind(user_id)
     .fetch_optional(db)
     .await
 }
