@@ -113,6 +113,8 @@ The project is especially useful when you need:
 
 - Request timeout middleware.
 
+- Fixed-window IP-based rate limiting middleware.
+
 - Session middleware for protected route validation and token renewal.
 
 - Access middleware for access token validation.
@@ -447,6 +449,12 @@ APP__AUTH__JWT_ACCESS_EXPIRATION_TIME_IN_HOURS=1
 APP__AUTH__JWT_REFRESH_EXPIRATION_TIME_IN_HOURS=24
 APP__AUTH__JWT_ONE_TIME_PASSWORD_LIFETIME_IN_MINUTES=5
 APP__AUTH__JWT_SECRET="generate-a-strong-random-secret"
+
+# Rate Limit
+APP__CLIENT_INTEGRATIONS__ALLOW_RATE_LIMIT_MIDDLEWARE=false
+APP__RATE_LIMIT__ENABLED=true
+APP__RATE_LIMIT__REQUESTS_PER_WINDOW=60
+APP__RATE_LIMIT__WINDOW_SECS=60
 ```
 
 Real secrets should never be committed. Keep local and production `.env` files out of source
@@ -635,6 +643,9 @@ APP__DATABASE__USER=okpainmo
 APP__DATABASE__PASSWORD=supersecret
 APP__DATABASE__NAME=rusty-auth-dev-db
 APP__AUTH__JWT_SECRET=replace-with-a-real-secret
+APP__CLIENT_INTEGRATIONS__ALLOW_RATE_LIMIT_MIDDLEWARE=true
+APP__RATE_LIMIT__REQUESTS_PER_WINDOW=60
+APP__RATE_LIMIT__WINDOW_SECS=60
 ```
 
 This TOML:
@@ -671,6 +682,53 @@ Startup validation requires:
 - `auth.jwt_refresh_expiration_time_in_hours`
 - `auth.jwt_one_time_password_lifetime_in_minutes`
 
+## Rate Limiting
+
+Rusty Auth includes an in-process fixed-window rate limiter. It is disabled by default through the
+middleware feature flag, but its defaults are defined in `config/base.toml`.
+
+```toml
+[client_integrations]
+allow_rate_limit_middleware = true
+
+[rate_limit]
+enabled = true
+requests_per_window = 60
+window_secs = 60
+```
+
+The limiter identifies clients by IP address. It checks request metadata in this order:
+
+1. `x-forwarded-for`
+2. `x-real-ip`
+3. Axum `ConnectInfo<SocketAddr>`
+4. `unknown`
+
+When a client exceeds the configured limit, the service returns:
+
+```http
+HTTP/1.1 429 Too Many Requests
+```
+
+```json
+{
+  "error": "Too Many Requests",
+  "response_message": "Rate limit exceeded. Please try again later."
+}
+```
+
+Rate-limit responses include:
+
+- `retry-after`
+- `x-ratelimit-limit`
+- `x-ratelimit-remaining`
+- `x-ratelimit-reset`
+
+Allowed responses also include the `x-ratelimit-*` headers.
+
+This first implementation is local to a single service instance. If Rusty Auth is deployed behind
+multiple replicas, use a shared backend such as Redis for distributed rate limiting.
+
 ## Security Model
 
 Rusty Auth includes several security-oriented defaults and checks:
@@ -689,6 +747,8 @@ Rusty Auth includes several security-oriented defaults and checks:
 
 - Protected routes require the auth cookie, access token, refresh/session token, user ID, and
   session ID.
+
+- Rate limiting can reject excessive requests before they reach protected route logic.
 
 - Inactive users are blocked by session middleware.
 
