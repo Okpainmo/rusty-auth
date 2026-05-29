@@ -33,6 +33,13 @@ impl From<argon2::password_hash::Error> for JwtError {
 
 /// JWT Claims structure.
 #[derive(Debug, Serialize, Deserialize)]
+pub enum TokenKind {
+    Access,
+    Refresh,
+    OneTimePassword,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
     /// User ID.
     pub id: i64,
@@ -42,6 +49,8 @@ pub struct Claims {
     pub exp: usize,
     /// Issued-at timestamp (seconds since epoch).
     pub iat: usize,
+    /// Token purpose.
+    pub token_kind: TokenKind,
 }
 
 /// Simplified User structure for token generation.
@@ -93,6 +102,7 @@ pub async fn generate_tokens(
                 email: user.email.clone(),
                 exp: access_token_expiration,
                 iat: Utc::now().timestamp() as usize,
+                token_kind: TokenKind::Access,
             };
 
             let access_token = encode(
@@ -106,6 +116,7 @@ pub async fn generate_tokens(
                 email: user.email.clone(),
                 exp: refresh_token_expiration,
                 iat: Utc::now().timestamp() as usize,
+                token_kind: TokenKind::Refresh,
             };
 
             let refresh_token = encode(
@@ -131,6 +142,7 @@ pub async fn generate_tokens(
                 email: user.email.clone(),
                 exp: otp_token_expiration,
                 iat: Utc::now().timestamp() as usize,
+                token_kind: TokenKind::OneTimePassword,
             };
 
             let otp_token = encode(
