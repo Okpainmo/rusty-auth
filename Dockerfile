@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-ARG RUST_VERSION=1.85
+ARG RUST_VERSION=1.92
 ARG APP_NAME=auth
 
 FROM rust:${RUST_VERSION}-bookworm AS chef

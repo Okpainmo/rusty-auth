@@ -24,7 +24,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        RUST_VERSION: "1.85"
+        RUST_VERSION: "1.92"
         APP_NAME: auth
     image: rusty-auth:local
     container_name: rusty-auth-app
