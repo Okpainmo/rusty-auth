@@ -70,25 +70,47 @@ fn verify_access_token(token: &str, secret: &str, user: &UserProfile) -> TokenSt
     let decoding_key = DecodingKey::from_secret(secret.as_bytes());
 
     match decode::<JwtClaims>(token, &decoding_key, &validation) {
-        Ok(token_data) => {
-            if token_data.claims.email != user.email {
-                return TokenStatus::Invalid("User credentials do not match".to_string());
-            }
-
-            if token_data.claims.token_kind != TokenKind::Access {
-                return TokenStatus::Invalid("Invalid token type".to_string());
-            }
-
-            TokenStatus::Valid
-        }
+        Ok(token_data) => match validate_access_claims(&token_data.claims, user) {
+            Ok(()) => TokenStatus::Valid,
+            Err(message) => TokenStatus::Invalid(message),
+        },
         Err(err) => {
             use jsonwebtoken::errors::ErrorKind;
             match err.kind() {
-                ErrorKind::ExpiredSignature => TokenStatus::Expired,
+                ErrorKind::ExpiredSignature => {
+                    let mut expired_validation = Validation::default();
+                    expired_validation.validate_exp = false;
+
+                    match decode::<JwtClaims>(token, &decoding_key, &expired_validation) {
+                        Ok(token_data) => match validate_access_claims(&token_data.claims, user) {
+                            Ok(()) => TokenStatus::Expired,
+                            Err(message) => TokenStatus::Invalid(message),
+                        },
+                        Err(err) => {
+                            TokenStatus::Invalid(format!("Token verification failed: {}", err))
+                        }
+                    }
+                }
                 _ => TokenStatus::Invalid(format!("Token verification failed: {}", err)),
             }
         }
     }
+}
+
+fn validate_access_claims(claims: &JwtClaims, user: &UserProfile) -> Result<(), String> {
+    if claims.id != user.id {
+        return Err("User credentials do not match".to_string());
+    }
+
+    if claims.email != user.email {
+        return Err("User credentials do not match".to_string());
+    }
+
+    if claims.token_kind != TokenKind::Access {
+        return Err("Invalid token type".to_string());
+    }
+
+    Ok(())
 }
 
 // ============================================================================
@@ -184,13 +206,13 @@ pub async fn access_middleware(
         ));
     }
 
-    let _access_token = auth_header.trim_start_matches("Bearer ");
+    let access_token = auth_header.trim_start_matches("Bearer ").trim();
 
     // ----------------------------------------------------------
     // ACCESS TOKEN VERIFICATION
     // ----------------------------------------------------------
     match verify_access_token(
-        &sessions_middleware_output.access_token,
+        access_token,
         &session_state.jwt_secret,
         &sessions_middleware_output.user,
     ) {

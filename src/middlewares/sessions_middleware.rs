@@ -400,6 +400,35 @@ pub async fn sessions_middleware(
                 ));
             }
 
+            match verification_handler(session_token, &session.refresh_token_hash).await {
+                Ok(true) => {}
+
+                Ok(false) => {
+                    error!("SESSION TOKEN HASH MISMATCH!");
+
+                    return Err((
+                        StatusCode::UNAUTHORIZED,
+                        Json(ErrorResponse {
+                            error: "Unauthorized".to_string(),
+                            response_message: "Session token does not match active session"
+                                .to_string(),
+                        }),
+                    ));
+                }
+
+                Err(e) => {
+                    error!("SESSION TOKEN VERIFICATION FAILED!");
+
+                    return Err((
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(ErrorResponse {
+                            error: "Session Token Verification Failed".to_string(),
+                            response_message: e.to_string(),
+                        }),
+                    ));
+                }
+            }
+
             let session_expiry =
                 match i64::try_from(auth_config.jwt_refresh_expiration_time_in_hours) {
                     Ok(session_expiry) => session_expiry,
@@ -565,10 +594,10 @@ pub async fn sessions_middleware(
                 error!("SESSION VERIFICATION FAILED!");
 
                 return Err((
-                    StatusCode::INTERNAL_SERVER_ERROR,
+                    StatusCode::UNAUTHORIZED,
                     Json(ErrorResponse {
-                        error: "Session Verification Failed".to_string(),
-                        response_message: err.to_string(),
+                        error: "Unauthorized".to_string(),
+                        response_message: "Session token is invalid".to_string(),
                     }),
                 ));
             }
