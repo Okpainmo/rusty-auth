@@ -15,8 +15,29 @@ registration, login, logout, session persistence, token rotation, role/permissio
 sub-session audit logs, environment-aware configuration, and integration tests against real HTTP
 flows.
 
+## Static Analysis/Code Standardization
+
+Rusty Auth is a Rust service, but the root build also uses JavaScript ecosystem tooling for
+repository workflow and code-standardization checks. The Node/Bun layer is intentionally limited to
+developer tooling; the service runtime remains Rust-based.
+
+- `package.json` defines the Bun-powered workflow scripts.
+- Husky installs Git hooks through the `prepare` script.
+- Commitlint enforces Conventional Commit messages in `.husky/commit-msg`.
+- Pre-commit checks run `cargo check`, `cargo fmt -- --check`, Clippy with warnings denied, and
+  Markdown formatting.
+- Pre-push checks run the Rust test suite and Markdown formatting checks.
+- Prettier is used for Markdown formatting and documentation consistency.
+
+Install the tooling with:
+
+```bash
+bun install
+```
+
 ## Table Of Contents
 
+- [Static Analysis/Code Standardization](#static-analysiscode-standardization)
 - [Why Rusty Auth](#why-rusty-auth)
 - [Core Capabilities](#core-capabilities)
 - [How Authentication Works](#how-authentication-works)
@@ -31,7 +52,9 @@ flows.
   - [Environment Files](#4-environment-files)
   - [Database Setup](#5-database-setup)
   - [Running The Server](#6-running-the-server)
+  - [Docker And Compose](#7-docker-and-compose)
 - [Postman Collection](#postman-collection)
+- [Traffic Simulation](#traffic-simulation)
 - [Configuration](#configuration)
 - [Rate Limiting](#rate-limiting)
 - [Security Model](#security-model)
@@ -331,6 +354,8 @@ config/              Base and environment-specific TOML configuration
 migrations/          SQLx database migrations
 postman/             Importable Postman collection and usage notes
 tests/               Integration tests for API flows
+Dockerfile           Multi-stage production image build
+compose.yaml         Local app plus PostgreSQL Compose stack
 ```
 
 The application is created in `src/lib.rs`, where auth routes are nested under `/api/v1/auth` and
@@ -663,7 +688,71 @@ Expected successful responses include the project-wide shape:
 }
 ```
 
-### 7. Creating New Migrations
+### 7. Docker And Compose
+
+Build the application image:
+
+```bash
+docker compose build app
+```
+
+Start the app and PostgreSQL together:
+
+```bash
+docker compose up
+```
+
+Run them in the background:
+
+```bash
+docker compose up -d
+```
+
+By default, Compose exposes:
+
+```text
+Rusty Auth API: http://127.0.0.1:8000/api/v1/auth
+PostgreSQL:     127.0.0.1:5433
+```
+
+The Compose database uses these local defaults:
+
+```text
+POSTGRES_USER=rusty_auth
+POSTGRES_PASSWORD=rusty_auth
+POSTGRES_DB=rusty_auth
+```
+
+Override them from your shell or a local environment file when needed:
+
+```bash
+POSTGRES_USER=auth_user \
+POSTGRES_PASSWORD=supersecret \
+POSTGRES_DB=auth_db \
+APP__AUTH__JWT_SECRET=replace-with-a-strong-secret \
+docker compose up -d
+```
+
+The app image is built with a multi-stage `Dockerfile` and `cargo-chef` dependency caching, so
+dependency layers can be reused across source-only rebuilds. The runtime image only carries the
+compiled `auth` binary and the `config/` directory required by the config loader.
+
+On first database initialization, Compose mounts `schema.sql` into Postgres'
+`/docker-entrypoint-initdb.d` directory so the local database starts with the current consolidated
+schema. If the named database volume already exists, Postgres will not replay initialization files.
+Reset the local Compose database only when you intentionally want a fresh database:
+
+```bash
+docker compose down -v
+```
+
+Then start it again:
+
+```bash
+docker compose up -d
+```
+
+### 8. Creating New Migrations
 
 Create a new migration file:
 
@@ -689,7 +778,7 @@ Example:
 sqlx migrate run --database-url postgres://okpainmo:supersecret@localhost:5433/rusty-auth-dev-db
 ```
 
-### 8. Development Checks
+### 9. Development Checks
 
 Check that the Rust code compiles:
 
@@ -765,6 +854,38 @@ Postman can capture the auth variables required by protected routes. Run
 backing session.
 
 See [postman/README.md](postman/README.md) for import and usage notes.
+
+## Traffic Simulation
+
+Rusty Auth includes a k6 traffic simulation script at:
+
+```text
+k6-traffic-simulation/main.js
+```
+
+The script creates one authenticated session per virtual user, then rotates through protected
+session, role, and permission routes while preserving fresh tokens returned by protected responses.
+Use [k6-traffic-simulation/.env.sample](k6-traffic-simulation/.env.sample) as the template for local
+k6-only environment values.
+
+Create a local k6 environment file from the template:
+
+```bash
+cp k6-traffic-simulation/.env.sample k6-traffic-simulation/.env
+```
+
+Edit `k6-traffic-simulation/.env`, then source it and run the simulation:
+
+```bash
+set -a
+. ./k6-traffic-simulation/.env
+set +a
+k6 run k6-traffic-simulation/main.js
+```
+
+See [k6-traffic-simulation/README.md](k6-traffic-simulation/README.md) for environment-loading
+details. The k6 script does not automatically read the app's root `.env`; source the dedicated
+`k6-traffic-simulation/.env` file before running it.
 
 ## Configuration
 
