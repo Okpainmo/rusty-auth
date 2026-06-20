@@ -144,10 +144,10 @@ fn add_rate_limit_headers(headers: &mut HeaderMap, decision: &RateLimitDecision)
         headers.insert("x-ratelimit-reset", value);
     }
 
-    if !decision.allowed {
-        if let Ok(value) = HeaderValue::from_str(&decision.retry_after_secs.to_string()) {
-            headers.insert("retry-after", value);
-        }
+    if !decision.allowed
+        && let Ok(value) = HeaderValue::from_str(&decision.retry_after_secs.to_string())
+    {
+        headers.insert("retry-after", value);
     }
 }
 
