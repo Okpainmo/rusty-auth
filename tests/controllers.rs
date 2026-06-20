@@ -1,4 +1,4 @@
-#[path = "common/mod.rs"]
+#[path = "common/shared.rs"]
 mod common;
 
 #[path = "controllers/login/login_user.rs"]

@@ -2,7 +2,7 @@ use auth::db::connect_postgres::connect_pg;
 use auth::middlewares::rate_limit_middleware::new_rate_limit_store;
 use auth::utils::load_config::load_config;
 use auth::{AppState, create_app};
-use axum_test::{TestRequest, TestServer};
+use axum_test::{TestRequest, TestResponse, TestServer};
 use sqlx::PgPool;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -127,6 +127,7 @@ pub struct TestAuth {
 pub async fn register_authenticated_user(server: &TestServer) -> TestAuth {
     let unique_id = Uuid::new_v4().to_string();
     let email = format!("auth_{}@example.com", unique_id);
+    let password = "password123";
 
     let response = server
         .post("/api/v1/auth/register")
@@ -134,7 +135,7 @@ pub async fn register_authenticated_user(server: &TestServer) -> TestAuth {
             first_name: "Auth".to_string(),
             last_name: "User".to_string(),
             email: email.clone(),
-            password: "password123".to_string(),
+            password: password.to_string(),
             country: Some("TestCountry".to_string()),
             country_code: Some("TC".to_string()),
             phone_number: Some(unique_id[0..10].to_string()),
@@ -157,6 +158,35 @@ pub async fn register_authenticated_user(server: &TestServer) -> TestAuth {
     }
 }
 
+pub async fn login_authenticated_user(
+    server: &TestServer,
+    email: &str,
+    password: &str,
+) -> TestAuth {
+    let response = server
+        .post("/api/v1/auth/login")
+        .json(&LoginRequest {
+            email: email.to_string(),
+            password: password.to_string(),
+        })
+        .await;
+
+    response.assert_status(axum::http::StatusCode::OK);
+    let auth_cookie = response.cookie("auth_cookie").value().to_string();
+    let body = response.json::<TestLoginResponse>();
+    let core = body.response.unwrap();
+    let user_profile = core.user_profile.unwrap();
+
+    TestAuth {
+        user_id: user_profile.id,
+        email: email.to_string(),
+        session_id: core.session_id,
+        access_token: core.access_token.unwrap(),
+        refresh_token: core.refresh_token.unwrap(),
+        auth_cookie,
+    }
+}
+
 pub fn authenticated_request(request: TestRequest, auth: &TestAuth) -> TestRequest {
     request
         .add_header("user_id", auth.user_id.to_string())
@@ -164,4 +194,22 @@ pub fn authenticated_request(request: TestRequest, auth: &TestAuth) -> TestReque
         .add_header("session_token", auth.refresh_token.clone())
         .add_header("session_id", auth.session_id.clone())
         .add_header("cookie", format!("auth_cookie={}", auth.auth_cookie))
+}
+
+pub fn refresh_auth_from_response(auth: &mut TestAuth, response: &TestResponse) {
+    let body = response.json::<serde_json::Value>();
+    let response = &body["response"];
+
+    auth.session_id = response["session_id"]
+        .as_str()
+        .expect("response session_id should be present")
+        .to_string();
+    auth.access_token = response["access_token"]
+        .as_str()
+        .expect("response access_token should be present")
+        .to_string();
+    auth.refresh_token = response["refresh_token"]
+        .as_str()
+        .expect("response refresh_token should be present")
+        .to_string();
 }

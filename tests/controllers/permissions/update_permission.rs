@@ -1,11 +1,14 @@
-use crate::common::{authenticated_request, register_authenticated_user, setup_test_server};
+use crate::common::{
+    authenticated_request, refresh_auth_from_response, register_authenticated_user,
+    setup_test_server,
+};
 use serde_json::Value;
 use uuid::Uuid;
 
 #[tokio::test]
 async fn test_update_permission_success() {
     let server = setup_test_server().await;
-    let auth = register_authenticated_user(&server).await;
+    let mut auth = register_authenticated_user(&server).await;
 
     let unique_id = Uuid::new_v4().to_string();
     let permission_name = format!("permission_{}", unique_id);
@@ -17,6 +20,7 @@ async fn test_update_permission_success() {
         }))
         .await;
     permission_response.assert_status(axum::http::StatusCode::CREATED);
+    refresh_auth_from_response(&mut auth, &permission_response);
     let permission_body = permission_response.json::<Value>();
     let permission_id = permission_body["response"]["data"]["id"].as_str().unwrap();
 
