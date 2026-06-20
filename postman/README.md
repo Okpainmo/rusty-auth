@@ -44,6 +44,10 @@ Those requests capture the main auth variables from the response:
 - `user_email`
 - `auth_cookie`
 
+Protected responses can rotate the active credentials. The collection-level test script updates
+`access_token`, `refresh_token`, and `session_id` whenever a response includes fresh values, so run
+protected requests in Postman as a sequence rather than manually reusing old tokens.
+
 Protected requests use those variables in the required headers:
 
 ```http

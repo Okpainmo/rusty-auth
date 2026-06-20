@@ -6,34 +6,14 @@
 [![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-yellow.svg)](https://conventionalcommits.org)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
 
-Rusty Auth is a production-minded authentication service built with Rust, Axum, PostgreSQL, SQLx,
-JWTs, secure cookies, and role-based access-control primitives.
+`Rusty Auth` is an auth microservice built with Rust, the Axum framework, Tokio, PostgreSQL, and a
+lot more.
 
-It is designed to be dropped into a microservice system as a ready auth boundary, while still being
-small enough to understand, customize, and extend. Out of the box it handles user/admin
-registration, login, logout, session persistence, token rotation, role/permission management,
-sub-session audit logs, environment-aware configuration, and integration tests against real HTTP
-flows.
-
-## Static Analysis/Code Standardization
-
-Rusty Auth is a Rust service, but the root build also uses JavaScript ecosystem tooling for
-repository workflow and code-standardization checks. The Node/Bun layer is intentionally limited to
-developer tooling; the service runtime remains Rust-based.
-
-- `package.json` defines the Bun-powered workflow scripts.
-- Husky installs Git hooks through the `prepare` script.
-- Commitlint enforces Conventional Commit messages in `.husky/commit-msg`.
-- Pre-commit checks run `cargo check`, `cargo fmt -- --check`, Clippy with warnings denied, and
-  Markdown formatting.
-- Pre-push checks run the Rust test suite and Markdown formatting checks.
-- Prettier is used for Markdown formatting and documentation consistency.
-
-Install the tooling with:
-
-```bash
-bun install
-```
+Built with much love for projects I lead/work on, it is designed to be dropped into a microservice
+system as a ready auth boundary, while still being small enough to understand, customize, and
+extend. Out of the box it handles user/admin registration, login, logout, session persistence, token
+rotation, role/permission management, sub-session audit logs, environment-aware configuration, and
+integration tests against real HTTP flows.
 
 ## Table Of Contents
 
@@ -48,11 +28,15 @@ bun install
 - [Project Architecture](#project-architecture)
 - [Requirements](#requirements)
 - [Setup & Execution](#setup--execution)
+  - [Core Prerequisites](#1-core-prerequisites)
+  - [Clone The Project](#2-clone-the-project)
   - [Integrating Into A Microservice Project](#3-integrating-into-a-microservice-project)
   - [Environment Files](#4-environment-files)
   - [Database Setup](#5-database-setup)
   - [Running The Server](#6-running-the-server)
   - [Docker And Compose](#7-docker-and-compose)
+  - [Creating New Migrations](#8-creating-new-migrations)
+  - [Development Checks](#9-development-checks)
 - [Postman Collection](#postman-collection)
 - [Traffic Simulation](#traffic-simulation)
 - [Configuration](#configuration)
@@ -62,6 +46,27 @@ bun install
 - [Operational Notes](#operational-notes)
 - [Contribution Workflow](#contribution-workflow)
 - [License](#license)
+
+## Static Analysis/Code Standardization
+
+Rusty Auth is purely a Rust service at its core, but the root build uses JavaScript ecosystem
+tooling for repository workflow and code-standardization checks. The Node/Bun layer is intentionally
+limited to developer tooling; the service runtime remains Rust-based.
+
+- `package.json` defines the Bun-powered workflow scripts.
+- Husky installs Git hooks through the `prepare` script.
+- Commitlint enforces Conventional Commit messages in `.husky/commit-msg`.
+- Pre-commit checks run `cargo check`, `cargo fmt -- --check`, Clippy with warnings denied, and
+  Markdown formatting.
+- Pre-push checks run unit tests, conditionally run DB-backed controller tests when PostgreSQL is
+  reachable, and verify Markdown formatting.
+- Prettier is used for Markdown formatting and documentation consistency.
+
+Install the tooling with:
+
+```bash
+bun install
+```
 
 ## Why Rusty Auth
 
@@ -215,12 +220,17 @@ session_id: <session_id>
 Cookie: auth_cookie=<auth_cookie_value>
 ```
 
-The session middleware verifies the user, cookie, session ID, refresh/session token, session status,
-and token claims. When the session is valid, it renews the session and issues fresh tokens for the
-current protected-route response.
+The session middleware verifies the user, cookie, session ID, refresh/session token, stored
+refresh-token hash, session status, and token claims. When the session is valid, it renews the
+session and issues fresh tokens for the current protected-route response.
 
 The access middleware then verifies that the access token belongs to the resolved user and has the
 expected access-token kind.
+
+Because protected routes rotate the session token, clients should treat `access_token`,
+`refresh_token`, and `session_id` from successful protected responses as the next credentials to
+use. Reusing an older refresh/session token after a protected response has rotated it will be
+rejected.
 
 ## API Reference
 
@@ -571,7 +581,26 @@ control.
 
 ### 5. Database Setup
 
-Start a local PostgreSQL database with Docker:
+The standard local database path is Compose, because `compose.yaml` already matches the app's
+expected PostgreSQL version and initializes the schema from `schema.sql`.
+
+Start only PostgreSQL with development-style credentials:
+
+```bash
+POSTGRES_USER=okpainmo \
+POSTGRES_PASSWORD=supersecret \
+POSTGRES_DB=rusty-auth-dev-db \
+POSTGRES_PORT=5433 \
+docker compose up -d db
+```
+
+Check that the database is healthy:
+
+```bash
+docker compose ps
+```
+
+If you prefer a one-off raw Docker container, use equivalent values:
 
 ```bash
 docker run -d \
@@ -616,8 +645,8 @@ sqlx migrate run --database-url postgres://okpainmo:supersecret@localhost:5433/r
 If you need to stop and start the local database later:
 
 ```bash
-docker stop rusty-auth-dev-db
-docker start rusty-auth-dev-db
+docker compose stop db
+docker compose start db
 ```
 
 If you need to inspect migration status:
@@ -723,7 +752,9 @@ POSTGRES_PASSWORD=rusty_auth
 POSTGRES_DB=rusty_auth
 ```
 
-Override them from your shell or a local environment file when needed:
+Override them from your shell or a local environment file when needed. For development tests, use
+the same values shown in [Database Setup](#5-database-setup) so `.env.development` and the Compose
+database agree.
 
 ```bash
 POSTGRES_USER=auth_user \
@@ -739,8 +770,11 @@ compiled `auth` binary and the `config/` directory required by the config loader
 
 On first database initialization, Compose mounts `schema.sql` into Postgres'
 `/docker-entrypoint-initdb.d` directory so the local database starts with the current consolidated
-schema. If the named database volume already exists, Postgres will not replay initialization files.
-Reset the local Compose database only when you intentionally want a fresh database:
+schema. The app container itself uses the `db` service hostname and port `5432`; the host machine
+uses `127.0.0.1:5433` by default.
+
+If the named database volume already exists, Postgres will not replay initialization files. Reset
+the local Compose database only when you intentionally want a fresh database:
 
 ```bash
 docker compose down -v
@@ -849,7 +883,9 @@ Before running protected requests, confirm or update these collection variables:
 | `target_user_id` | User target for role/session examples        | empty                                  |
 
 Run `Public Auth / Register User`, `Public Auth / Register Admin`, or `Public Auth / Login` first so
-Postman can capture the auth variables required by protected routes. Run
+Postman can capture the auth variables required by protected routes. The collection also updates
+`access_token`, `refresh_token`, and `session_id` from protected-route responses, which keeps the
+collection aligned with Rusty Auth's session-token rotation behavior. Run
 `Logout / Logout Current Session` last when manually testing a flow, because it revokes the current
 backing session.
 
@@ -1043,6 +1079,12 @@ Rusty Auth includes several security-oriented defaults and checks:
 
 - Refresh/session tokens are hashed before database storage.
 
+- Submitted refresh/session tokens are verified against the stored session hash before protected
+  routes execute.
+
+- Bearer access tokens are verified from the request and must match the resolved user and access
+  token kind.
+
 - Auth cookies are HTTP-only.
 
 - Auth cookies are marked `Secure` outside development.
@@ -1082,6 +1124,13 @@ Run the integration test target:
 cargo test --test controllers
 ```
 
+For the most predictable local run against one shared development database, run the controller
+target with one test thread:
+
+```bash
+cargo test --test controllers -- --test-threads=1
+```
+
 The integration tests live in `tests/controllers` and cover flows across:
 
 - User registration.
@@ -1100,7 +1149,7 @@ The integration tests live in `tests/controllers` and cover flows across:
 
 - Role-permission assignment and deletion.
 
-Integration tests use `tests/common/mod.rs` to create an Axum `TestServer`, connect to the
+Integration tests use `tests/common/shared.rs` to create an Axum `TestServer`, connect to the
 configured PostgreSQL database, and provide helpers for authenticated requests.
 
 Before running integration tests, make sure:
@@ -1111,7 +1160,12 @@ Before running integration tests, make sure:
 
 - Database variables point to the test/development database.
 
-- Migrations have been applied.
+- The schema has been initialized through Compose's `schema.sql` mount or migrations have been
+  applied manually.
+
+The repository pre-push hook always runs `cargo test --lib`. It runs the controller integration
+target only when the configured local database port is reachable, so contributors without a running
+PostgreSQL instance can still push docs or unit-only changes.
 
 ## Operational Notes
 

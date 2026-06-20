@@ -37,7 +37,7 @@ k6 run k6-traffic-simulation/main.js
 
 ## Run
 
-Start Rusty Auth first, then run:
+Start Rusty Auth and PostgreSQL first, then run:
 
 ```bash
 set -a
@@ -49,4 +49,12 @@ k6 run k6-traffic-simulation/main.js
 ## Current Flow
 
 Each virtual user registers or reuses a unique test account, logs in, captures auth cookies and
-tokens, then rotates through protected session, role, and permission routes.
+tokens, then rotates through protected session, role, and permission routes. The script preserves
+fresh `access_token`, `refresh_token`, and `session_id` values returned by protected responses, which
+matches Rusty Auth's session-token rotation behavior.
+
+## Data Safety
+
+The script creates users in the target Rusty Auth database. Point `AUTH_BASE_URL` at a local,
+staging, or disposable environment unless you intentionally want load-test accounts in that
+database. Use `K6_RUN_ID` when you want predictable account prefixes for later cleanup.
