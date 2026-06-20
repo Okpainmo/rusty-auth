@@ -7,6 +7,8 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use uuid::Uuid;
 
+const TEST_DB_MAX_CONNECTIONS: u32 = 1;
+
 pub async fn setup_test_server_and_db() -> (TestServer, PgPool) {
     dotenvy::from_filename(".env.development").ok();
 
@@ -34,7 +36,7 @@ pub async fn setup_test_server_and_db() -> (TestServer, PgPool) {
 
     let db_pool = connect_pg(
         database_url,
-        db_config.max_connections,
+        TEST_DB_MAX_CONNECTIONS,
         db_config.connect_timeout_secs,
     )
     .await;

@@ -4,8 +4,30 @@ info() {
   printf '%s\n' "$1"
 }
 
-info "🧪 Pre-push: running test suite..."
-cargo test || exit 1
+info "🧪 Pre-push: running unit tests..."
+cargo test --lib || exit 1
+
+env_value() {
+  key="$1"
+  file="$2"
+
+  [ -f "$file" ] || return 0
+
+  sed -n "s/^${key}=//p" "$file" | head -n 1 | tr -d '\r' | sed 's/^"//; s/"$//'
+}
+
+DB_HOST="${APP__DATABASE__HOST:-$(env_value "APP__DATABASE__HOST" ".env.development")}"
+DB_PORT="${APP__DATABASE__PORT:-$(env_value "APP__DATABASE__PORT" ".env.development")}"
+DB_HOST="${DB_HOST:-localhost}"
+DB_PORT="${DB_PORT:-5433}"
+
+if command -v nc >/dev/null 2>&1 && nc -z -w 2 "$DB_HOST" "$DB_PORT" >/dev/null 2>&1; then
+  info "🧪 Pre-push: database reachable at ${DB_HOST}:${DB_PORT}; running controller tests..."
+  cargo test --test controllers || exit 1
+else
+  info "⚠️  Pre-push: database not reachable at ${DB_HOST}:${DB_PORT}; skipping DB-backed controller tests."
+  info "    Run them manually with: cargo test --test controllers"
+fi
 
 info "📝 Checking markdown formatting..."
 bunx prettier --check "**/*.md" || exit 1
