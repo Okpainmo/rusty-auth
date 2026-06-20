@@ -493,7 +493,9 @@ rm -rf \
   commitlint.config.mjs \
   package.json \
   bun.lock \
-  prettier.config.mjs
+  prettier.config.mjs \
+  .prettierignore \
+  .editorconfig
 ```
 
 You can also remove `README.md` and `LICENSE` if the parent repository already provides project-wide
