@@ -15,6 +15,31 @@ registration, login, logout, session persistence, token rotation, role/permissio
 sub-session audit logs, environment-aware configuration, and integration tests against real HTTP
 flows.
 
+## Table Of Contents
+
+- [Why Rusty Auth](#why-rusty-auth)
+- [Core Capabilities](#core-capabilities)
+- [How Authentication Works](#how-authentication-works)
+- [API Reference](#api-reference)
+  - [Public Routes](#public-routes)
+  - [Protected Routes](#protected-routes)
+  - [Request Examples](#request-examples)
+- [Project Architecture](#project-architecture)
+- [Requirements](#requirements)
+- [Setup & Execution](#setup--execution)
+  - [Integrating Into A Microservice Project](#3-integrating-into-a-microservice-project)
+  - [Environment Files](#4-environment-files)
+  - [Database Setup](#5-database-setup)
+  - [Running The Server](#6-running-the-server)
+- [Postman Collection](#postman-collection)
+- [Configuration](#configuration)
+- [Rate Limiting](#rate-limiting)
+- [Security Model](#security-model)
+- [Testing](#testing)
+- [Operational Notes](#operational-notes)
+- [Contribution Workflow](#contribution-workflow)
+- [License](#license)
+
 ## Why Rusty Auth
 
 Rusty Auth exists for teams and builders who want a practical auth service without starting from a
@@ -304,6 +329,7 @@ src/
 
 config/              Base and environment-specific TOML configuration
 migrations/          SQLx database migrations
+postman/             Importable Postman collection and usage notes
 tests/               Integration tests for API flows
 ```
 
@@ -311,6 +337,16 @@ The application is created in `src/lib.rs`, where auth routes are nested under `
 global middleware is applied. Runtime startup lives in `src/main.rs`, which loads environment files,
 loads and validates configuration, connects to PostgreSQL, initializes app state, and starts the
 Axum server.
+
+## Requirements
+
+- Rust `1.85+`
+- Cargo
+- PostgreSQL `15+`, or Docker for running PostgreSQL locally
+- `sqlx-cli` for applying database migrations
+- `cargo-watch`, optional, for the `cargo dev` workflow
+- Node.js and Bun, optional, for repository contribution tooling
+- Postman, optional, for importing and running the API collection
 
 ## Setup & Execution
 
@@ -360,8 +396,8 @@ bun install
 
 ### 3. Integrating Into A Microservice Project
 
-If you want Rusty Auth inside an existing microservice workspace, clone it into your services
-directory.
+If you want Rusty Auth inside an existing microservice workspace, add it as a standalone auth
+service inside your parent repository's services or microservices directory.
 
 Move into the preferred services directory:
 
@@ -387,21 +423,59 @@ Remove the Git history so the service becomes part of your parent project:
 rm -rf .git
 ```
 
+Keep the runtime files that make Rusty Auth a service:
+
+```text
+src/
+config/
+migrations/
+Cargo.toml
+Cargo.lock
+schema.sql
+.cargo/config.toml
+.env.sample
+.env.development.sample
+.env.staging.sample
+.env.production.sample
+```
+
+Keep `postman/` if you want the parent project to retain the importable API collection for manual
+testing and onboarding.
+
 Remove repository-specific community and contribution files if your parent project already owns
 those concerns:
 
 ```bash
-rm -rf .github .husky .codex .vscode CHANGELOG.md CODE_OF_CONDUCT.md CONTRIBUTING.md commitlint.config.mjs LICENSE SECURITY.md
+rm -rf \
+  .github \
+  .husky \
+  .codex \
+  .vscode \
+  CHANGELOG.md \
+  CODE_OF_CONDUCT.md \
+  CONTRIBUTING.md \
+  SECURITY.md \
+  commitlint.config.mjs \
+  package.json \
+  bun.lock \
+  prettier.config.mjs
 ```
 
-Remove the package `prepare` script if you are not using this repository's Husky setup:
+You can also remove `README.md` and `LICENSE` if the parent repository already provides project-wide
+documentation and licensing. Keep them if the auth service should remain documented as its own
+standalone unit inside the parent repo.
+
+If your parent repository also uses Bun/Node tooling and you choose to keep `package.json`, remove
+the package `prepare` script if you are not using this repository's Husky setup:
 
 ```bash
 bun pm pkg delete scripts.prepare
 ```
 
-If your parent repository also uses Bun/Node tooling, review `package.json`, `bun.lock`,
-`prettier.config.mjs`, and the remaining scripts before deleting them.
+Even inside a broader microservice system, configure Rusty Auth as an independent service. Give it
+its own database, environment file, JWT secret, cookie policy, and deployment lifecycle. Other
+services should treat it as the authentication boundary and consume the tokens/session data it
+issues through explicit API contracts.
 
 ### 4. Environment Files
 
@@ -421,11 +495,21 @@ cp .env.staging.sample .env.staging
 cp .env.production.sample .env.production
 ```
 
-Set the active application environment with `APP__ENV`:
+The root `.env` file selects which environment-specific dotenv file is loaded by `load_env()`:
 
-```bash
+```dotenv
+APP__DEPLOY__ENV=development
+```
+
+The active environment-specific file should also set `APP__ENV`, which selects the matching TOML
+configuration layer:
+
+```dotenv
 APP__ENV=development
 ```
+
+For example, `APP__DEPLOY__ENV=development` loads `.env.development`, and `APP__ENV=development`
+loads `config/development.toml`.
 
 Your `.env.development` should include values like:
 
@@ -549,6 +633,36 @@ development configuration, the API is available at:
 http://127.0.0.1:8000/api/v1/auth
 ```
 
+Smoke-check the API by registering a disposable user:
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "first_name": "Smoke",
+    "last_name": "User",
+    "email": "smoke@example.com",
+    "password": "password123",
+    "country": "Testland",
+    "country_code": "TL",
+    "phone_number": "1000000001"
+  }'
+```
+
+Expected successful responses include the project-wide shape:
+
+```json
+{
+  "response_message": "Registration successful",
+  "response": {
+    "session_id": "<session-id>",
+    "access_token": "<access-token>",
+    "refresh_token": "<refresh-token>"
+  },
+  "error": null
+}
+```
+
 ### 7. Creating New Migrations
 
 Create a new migration file:
@@ -613,17 +727,60 @@ Check Markdown formatting:
 bun run format:check
 ```
 
+## Postman Collection
+
+Postman collection files are available in the [postman](postman) directory. Import the collection
+when you want to exercise the auth API without rebuilding requests by hand.
+
+| Collection       | File                                                                                     | Folders                                                     |
+| ---------------- | ---------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| `Rusty Auth API` | [postman/rusty-auth.postman_collection.json](postman/rusty-auth.postman_collection.json) | `Public Auth`, `Sessions`, `Roles`, `Permissions`, `Logout` |
+
+The collection includes requests for:
+
+- Public registration and login.
+- Session listing, lookup, and expiry update.
+- Role creation, update, assignment, removal, and listing.
+- Permission creation, update, and listing.
+- Logout and session revocation.
+
+Before running protected requests, confirm or update these collection variables:
+
+| Variable         | Purpose                                      | Default                                |
+| ---------------- | -------------------------------------------- | -------------------------------------- |
+| `base_url`       | Rusty Auth API base URL                      | `http://127.0.0.1:8000/api/v1/auth`    |
+| `access_token`   | Bearer token captured from register or login | empty                                  |
+| `refresh_token`  | Session token captured from register/login   | empty                                  |
+| `session_id`     | Backing database session ID                  | empty                                  |
+| `user_id`        | Authenticated user ID                        | empty                                  |
+| `user_email`     | Email used for login/logout examples         | `ada@example.com`                      |
+| `auth_cookie`    | Value of the `auth_cookie` cookie            | empty                                  |
+| `role_id`        | Role used by role/permission examples        | `00000000-0000-0000-0000-000000000001` |
+| `permission_id`  | Permission used by role-permission examples  | empty                                  |
+| `target_user_id` | User target for role/session examples        | empty                                  |
+
+Run `Public Auth / Register User`, `Public Auth / Register Admin`, or `Public Auth / Login` first so
+Postman can capture the auth variables required by protected routes. Run
+`Logout / Logout Current Session` last when manually testing a flow, because it revokes the current
+backing session.
+
+See [postman/README.md](postman/README.md) for import and usage notes.
+
 ## Configuration
 
 The project uses the `config` crate and a layered configuration model.
 
-Configuration loading order, from lowest to highest priority:
+All dotenv files are loaded before configuration is deserialized:
+
+1. `.env`, which selects the deployment environment with `APP__DEPLOY__ENV`.
+2. `.env.{APP__DEPLOY__ENV}`, for example `.env.development`.
+
+The config loader then resolves application configuration in this order, from lowest to highest
+priority:
 
 1. `config/base.toml`
 2. `config/{APP__ENV}.toml`, such as `config/development.toml`
-
-3. `config/local.toml`
-
+3. `config/local.toml`, if present
 4. Environment variables prefixed with `APP__`
 
 Environment variables use double underscores to map to nested TOML fields.
@@ -660,6 +817,32 @@ Can be overridden with:
 ```bash
 APP__SERVER__PORT=9000
 ```
+
+Common runtime variables:
+
+| Variable                                                | Purpose                                | Default/Source        |
+| ------------------------------------------------------- | -------------------------------------- | --------------------- |
+| `APP__DEPLOY__ENV`                                      | Selects which `.env.*` file to load    | `development`         |
+| `APP__ENV`                                              | Selects the TOML config environment    | required by loader    |
+| `APP__SERVER__HOST`                                     | Server bind host                       | `127.0.0.1`           |
+| `APP__SERVER__PORT`                                     | Server bind port                       | `8000`                |
+| `APP__SERVER__REQUEST_TIMEOUT_SECS`                     | Request timeout in seconds             | `60`                  |
+| `APP__DATABASE__ENGINE`                                 | Database engine                        | `postgres`            |
+| `APP__DATABASE__HOST`                                   | PostgreSQL host                        | environment-specific  |
+| `APP__DATABASE__PORT`                                   | PostgreSQL port                        | `5433` in development |
+| `APP__DATABASE__USER`                                   | PostgreSQL user                        | environment-specific  |
+| `APP__DATABASE__PASSWORD`                               | PostgreSQL password                    | environment-specific  |
+| `APP__DATABASE__NAME`                                   | PostgreSQL database name               | environment-specific  |
+| `APP__DATABASE__MAX_CONNECTIONS`                        | PostgreSQL pool size                   | `20`                  |
+| `APP__DATABASE__CONNECT_TIMEOUT_SECS`                   | PostgreSQL connection timeout          | `5`                   |
+| `APP__AUTH__JWT_SECRET`                                 | JWT signing secret                     | environment override  |
+| `APP__AUTH__JWT_ACCESS_EXPIRATION_TIME_IN_HOURS`        | Access-token lifetime                  | `1`                   |
+| `APP__AUTH__JWT_REFRESH_EXPIRATION_TIME_IN_HOURS`       | Refresh/session-token lifetime         | `24`                  |
+| `APP__AUTH__JWT_ONE_TIME_PASSWORD_LIFETIME_IN_MINUTES`  | OTP token lifetime                     | `5`                   |
+| `APP__CLIENT_INTEGRATIONS__ALLOW_RATE_LIMIT_MIDDLEWARE` | Enables rate-limit middleware          | `false`               |
+| `APP__RATE_LIMIT__ENABLED`                              | Enables limiter when middleware runs   | `true`                |
+| `APP__RATE_LIMIT__REQUESTS_PER_WINDOW`                  | Allowed requests per rate-limit window | `60`                  |
+| `APP__RATE_LIMIT__WINDOW_SECS`                          | Rate-limit window length               | `60`                  |
 
 ### Required Configuration Sections
 
@@ -808,6 +991,34 @@ Before running integration tests, make sure:
 - Database variables point to the test/development database.
 
 - Migrations have been applied.
+
+## Operational Notes
+
+- **Rusty Auth is stateful**. User accounts, role mappings, permissions, sessions, and sub-session
+  audit records live in PostgreSQL. Treat database availability, backups, migrations, and connection
+  pool sizing as part of the service deployment.
+
+- **Run one logical auth service against one authoritative auth database** unless you have planned
+  database-level consistency, migration coordination, and secret rotation across replicas.
+
+- **JWT secrets are deployment-critical**. Rotating `APP__AUTH__JWT_SECRET` invalidates tokens
+  signed with the previous value unless you add explicit multi-key rotation support.
+
+- **Protected routes require both token and session context**. Callers must send the access token,
+  refresh/session token, session ID, user ID, and `auth_cookie` value together.
+
+- **Session rotation is response-driven**. Protected-route responses can return fresh access and
+  refresh tokens. Client applications should update their stored tokens from successful protected
+  responses when using this flow.
+
+- **Rate limiting is in-process**. It is suitable as a first local guard. For multiple replicas, use
+  a shared backend such as Redis or move rate limiting to an API gateway.
+
+- **Keep auth service network access narrow**. In a microservice deployment, expose public auth
+  routes through the project gateway and restrict direct database access to the auth service.
+
+- **The Postman collection is an operator aid**. It is useful for onboarding and manual smoke tests,
+  but automated confidence should come from the integration tests and CI workflow.
 
 ## Contribution Workflow
 
