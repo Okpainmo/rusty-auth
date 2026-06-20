@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/Okpainmo/rusty-auth/actions/workflows/ci.yml/badge.svg)](https://github.com/Okpainmo/rusty-auth/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Rust](https://img.shields.io/badge/Rust-1.85%2B-orange.svg)](https://www.rust-lang.org/)
+[![Rust](https://img.shields.io/badge/Rust-1.92%2B-orange.svg)](https://www.rust-lang.org/)
 [![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-yellow.svg)](https://conventionalcommits.org)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
 
@@ -221,8 +221,8 @@ Cookie: auth_cookie=<auth_cookie_value>
 ```
 
 The session middleware verifies the user, cookie, session ID, refresh/session token, stored
-refresh-token hash, session status, and token claims. When the session is valid, it renews the
-session and issues fresh tokens for the current protected-route response.
+Argon2-hashed refresh-token, session status, and token claims. When the session is valid, it renews
+the session and issues fresh tokens for the current protected-route response.
 
 The access middleware then verifies that the access token belongs to the resolved user and has the
 expected access-token kind.
@@ -375,7 +375,7 @@ Axum server.
 
 ## Requirements
 
-- Rust `1.85+`
+- Rust `1.92+`
 - Cargo
 - PostgreSQL `15+`, or Docker for running PostgreSQL locally
 - `sqlx-cli` for applying database migrations
@@ -392,7 +392,7 @@ microservice integration predictable from a fresh clone.
 
 Install the required tooling:
 
-- [Rust](https://www.rust-lang.org/tools/install), version `1.85` or newer.
+- [Rust](https://www.rust-lang.org/tools/install), version `1.92` or newer.
 - [Docker](https://www.docker.com/) for running PostgreSQL locally.
 - [sqlx-cli](https://github.com/launchbadge/sqlx/tree/main/sqlx-cli) for database migrations.
 - [cargo-watch](https://crates.io/crates/cargo-watch) for the `cargo dev` workflow.
@@ -1077,7 +1077,7 @@ Rusty Auth includes several security-oriented defaults and checks:
 
 - Access and refresh tokens are JWTs with explicit token-kind claims.
 
-- Refresh/session tokens are hashed before database storage.
+- Refresh/session tokens are Argon2-hashed before database storage.
 
 - Submitted refresh/session tokens are verified against the stored session hash before protected
   routes execute.
