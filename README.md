@@ -6,12 +6,12 @@
 [![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-yellow.svg)](https://conventionalcommits.org)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
 
-`Rusty Auth` is an auth microservice built with Rust, the Axum framework, Tokio, PostgreSQL, and a
+`rusty-auth` is an auth microservice built with Rust, the Axum framework, Tokio, PostgreSQL, and a
 lot more.
 
 Built with much love for projects I lead/work on, it is designed to be dropped into a microservice
-system as a ready auth boundary, while still being small enough to understand, customize, and
-extend. Out of the box it handles user/admin registration, login, logout, session persistence, token
+system as a ready auth boundary, while still being small enough to be understood, customized, and
+extended. Out of the box it handles user/admin registration, login, logout, session persistence, token
 rotation, role/permission management, sub-session audit logs, environment-aware configuration, and
 integration tests against real HTTP flows.
 
