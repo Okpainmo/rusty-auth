@@ -1,14 +1,9 @@
 /target
 
 # .env
-.env.development
-.env.production
-.env.staging
-.env
 
 # extras
 .idea
-.vscode
 bash.exe.stackdump
 NOTES.md
 
@@ -17,3 +12,8 @@ node_modules
 
 # internal
 internal
+branch_structure.json
+temp_auto_push.bat
+temp_interactive_push.bat
+.gitignore
+config.bat
